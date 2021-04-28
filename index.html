@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Statistics</title>
+</head>
+<body>
+  <div style="margin-bottom: 1em; text-align: center;">
+    <select id="id-selector"></select>
+    <input type="file" id="file-input" />
+  </div>
+  <div>
+    <canvas id="chart"></canvas>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+   const ctx = document.getElementById('chart').getContext('2d')
+   const select = document.getElementById('id-selector')
+   const fileInput = document.getElementById('file-input')
+
+   fileInput.onchange = function(e) {
+       const input = e.target
+
+       if (!input.files.length) return
+
+       const file = input.files[0]
+
+       if (file.type != 'application/json') {
+           console.log('Wrong file type')
+           alert('File must be JSON')
+           return
+       }
+       const reader = new FileReader()
+       reader.onload = function(e) {
+           const json = JSON.parse(e.target.result)
+
+           initInterface(json)
+
+           input.value = ''
+       }
+       reader.readAsText(file)
+   }
+
+   function initInterface(data) {
+       let chart
+       const options = new Set()
+
+       for (const build of data) {
+           build.results.forEach(result => options.add(result.id))
+       }
+       const availableIds = Array.from(options)
+
+       availableIds.map(id => {
+           const opt = document.createElement('option');
+           opt.value = id;
+           opt.innerHTML = id;
+           select.appendChild(opt);
+       })
+
+       select.onchange = function(e) {
+           const id = e.target.value
+
+           initChart(data, id)
+       }
+
+       initChart(data, availableIds[0])
+
+       function initChart(data, id) {
+           if (chart) chart.destroy()
+
+           const preparedData = getResultsById(data, id)
+
+           const config = {
+               type: 'line',
+               data: {
+                   labels: preparedData.map(item => item.date),
+                   datasets: [
+                       {
+                           label: 'Results',
+                           data: preparedData.map(item => item.result),
+                           borderColor: 'rgb(75, 192, 192)',
+                       },
+                       {
+                           label: 'Expected',
+                           data: preparedData.map(item => item.expected),
+                           borderColor: 'lightgray',
+                           borderDash: [5]
+                       }
+                   ]
+               }
+           }
+           chart = new Chart(ctx, config)
+       }
+   }
+    function getResultsById(statistics, id) {
+      console.log(statistics, id)
+      return statistics.map(stat => ({
+        ...stat,
+        ...stat.results.find(result => result.id === id),
+        results: null
+      })).filter(item => item.result)
+    }
+  </script>
+</body>
+</html>
